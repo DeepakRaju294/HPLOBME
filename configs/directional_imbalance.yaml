@@ -1,0 +1,29 @@
+# Directional-imbalance market regime (spec section 17). Order flow is
+# skewed toward one side to exercise inventory accumulation and the
+# reservation-price adjustment in the inventory-aware strategy.
+
+seed: 42
+tick_size: 1
+duration_steps: 10000
+
+reference_price:
+  model: gbm
+  initial_price: 10000
+  drift: 0.0
+  volatility: 0.0005
+
+order_flow:
+  arrival_rate: 5.0
+  buy_probability: 0.75       # skewed vs. 0.5 baseline
+  order_size_mean: 100
+  aggressive_probability: 0.2
+
+market_maker:
+  strategy: inventory_aware
+  inventory_coefficient: 0.001
+  half_spread_ticks: 5
+  max_inventory: 1000
+  max_order_size: 100
+  min_spread_ticks: 2
+  quote_refresh_interval_steps: 1
+  volatility_suspend_threshold: 0.01

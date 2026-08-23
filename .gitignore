@@ -1,0 +1,32 @@
+# Build outputs
+build/
+build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+*.o
+*.obj
+*.exe
+*.dll
+*.dylib
+*.so
+*.pyd
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Editors / OS
+.vs/
+.vscode/
+.idea/
+.DS_Store
+
+# Sanitizer/profiling scratch
+*.log
+perf.data*
+*.prof

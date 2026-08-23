@@ -1,0 +1,29 @@
+# Baseline market regime (spec section 17).
+# Field names/values are provisional and will be finalized alongside the
+# Python simulator in Milestone 6/7.
+
+seed: 42
+tick_size: 1
+duration_steps: 10000
+
+reference_price:
+  model: gbm
+  initial_price: 10000        # integer ticks, e.g. 10000 = $100.00 at tick=0.01
+  drift: 0.0
+  volatility: 0.0005          # per-step
+
+order_flow:
+  arrival_rate: 5.0           # orders per step
+  buy_probability: 0.5
+  order_size_mean: 100
+  aggressive_probability: 0.2
+
+market_maker:
+  strategy: inventory_aware
+  inventory_coefficient: 0.001
+  half_spread_ticks: 5
+  max_inventory: 1000
+  max_order_size: 100
+  min_spread_ticks: 2
+  quote_refresh_interval_steps: 1
+  volatility_suspend_threshold: 0.01
