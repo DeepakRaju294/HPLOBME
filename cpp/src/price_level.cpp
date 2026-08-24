@@ -34,4 +34,11 @@ void PriceLevel::reduce_front_quantity(Quantity filled) {
     total_quantity_ -= filled;
 }
 
+void PriceLevel::reduce_quantity(OrderIterator it, Quantity new_quantity) {
+    const Quantity delta = it->remaining_quantity - new_quantity;
+    it->remaining_quantity = new_quantity;
+    it->quantity = new_quantity;
+    total_quantity_ -= delta;
+}
+
 } // namespace lob

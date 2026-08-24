@@ -37,9 +37,14 @@ public:
     void pop_front();
 
     // Reduces the resting quantity of the front (time-priority) order by a
-    // partial fill, keeping total_quantity() reconciled. Used by matching
-    // (Milestone 2).
+    // partial fill, keeping total_quantity() reconciled. Used by matching.
     void reduce_front_quantity(Quantity filled);
+
+    // Sets an arbitrary order's resting quantity in place, without moving
+    // it -- used for a priority-preserving replace (same price, lower
+    // quantity; spec section 11). Caller guarantees new_quantity does not
+    // exceed the order's current remaining_quantity.
+    void reduce_quantity(OrderIterator it, Quantity new_quantity);
 
     ConstOrderIterator begin() const { return orders_.begin(); }
     ConstOrderIterator end() const { return orders_.end(); }

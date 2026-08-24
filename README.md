@@ -8,8 +8,8 @@ This project demonstrates the engineering principles behind electronic
 trading systems — correct price-time-priority matching, deterministic
 event processing and replay, sequenced market data, profile-guided
 performance optimization, and Python-based strategy simulation — rather
-than reproducing a production exchange. See `docs/` for the full design
-spec and rationale.
+than reproducing a production exchange. See [docs/spec.md](docs/spec.md)
+for the full design spec and rationale.
 
 **Status:** scaffolding only. Milestone 1 (core order book) has not
 started yet — see [Milestones](#milestones) below.

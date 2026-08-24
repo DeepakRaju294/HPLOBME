@@ -144,6 +144,95 @@ BookSnapshot OrderBook::snapshot(std::size_t depth) const {
     return snap;
 }
 
+const Order* OrderBook::find_order(OrderId id) const {
+    auto it = order_index_.find(id);
+    if (it == order_index_.end()) {
+        return nullptr;
+    }
+    return &(*it->second.iterator);
+}
+
+const Order* OrderBook::best_order(Side side) const {
+    if (side == Side::Buy) {
+        if (bids_.empty()) {
+            return nullptr;
+        }
+        return &bids_.begin()->second.front();
+    }
+    if (asks_.empty()) {
+        return nullptr;
+    }
+    return &asks_.begin()->second.front();
+}
+
+template <typename LevelMap>
+Quantity OrderBook::fill_best_order_impl(LevelMap& levels, Quantity qty,
+                                          std::unordered_map<OrderId, OrderLocation>& order_index) {
+    auto level_it = levels.begin();
+    PriceLevel& level = level_it->second;
+    const Order& front = level.front();
+
+    if (qty >= front.remaining_quantity) {
+        const OrderId id = front.id;
+        order_index.erase(id);
+        level.pop_front();
+        if (level.empty()) {
+            levels.erase(level_it);
+        }
+        return 0;
+    }
+
+    level.reduce_front_quantity(qty);
+    return level.front().remaining_quantity;
+}
+
+Quantity OrderBook::fill_best_order(Side side, Quantity qty) {
+    if (side == Side::Buy) {
+        return fill_best_order_impl(bids_, qty, order_index_);
+    }
+    return fill_best_order_impl(asks_, qty, order_index_);
+}
+
+Quantity OrderBook::matchable_quantity(Side incoming_side, std::optional<Price> price_limit, Quantity cap) const {
+    Quantity total = 0;
+    if (incoming_side == Side::Buy) {
+        for (const auto& [price, level] : asks_) {
+            if (price_limit.has_value() && price > *price_limit) {
+                break;
+            }
+            total += level.total_quantity();
+            if (total >= cap) {
+                break;
+            }
+        }
+    } else {
+        for (const auto& [price, level] : bids_) {
+            if (price_limit.has_value() && price < *price_limit) {
+                break;
+            }
+            total += level.total_quantity();
+            if (total >= cap) {
+                break;
+            }
+        }
+    }
+    return total;
+}
+
+bool OrderBook::reduce_quantity_in_place(OrderId id, Quantity new_quantity) {
+    auto it = order_index_.find(id);
+    if (it == order_index_.end()) {
+        return false;
+    }
+    const OrderLocation& location = it->second;
+    if (location.side == Side::Buy) {
+        bids_.find(location.price)->second.reduce_quantity(location.iterator, new_quantity);
+    } else {
+        asks_.find(location.price)->second.reduce_quantity(location.iterator, new_quantity);
+    }
+    return true;
+}
+
 bool OrderBook::validate_invariants() const {
     return validate_book_invariants(*this);
 }

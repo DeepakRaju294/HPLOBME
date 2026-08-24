@@ -19,6 +19,8 @@ add_library(lob_core STATIC
   cpp/src/price_level.cpp
   cpp/src/order_book.cpp
   cpp/src/invariants.cpp
+  cpp/src/matching_engine.cpp
+  cpp/src/replay.cpp
 )
 target_include_directories(lob_core PUBLIC ${CMAKE_SOURCE_DIR}/cpp/include)
 target_compile_features(lob_core PUBLIC cxx_std_20)

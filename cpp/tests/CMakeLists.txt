@@ -10,6 +10,9 @@ FetchContent_MakeAvailable(googletest)
 add_executable(lob_tests
   sanity_test.cpp
   order_book_test.cpp
+  matching_engine_test.cpp
+  market_data_test.cpp
+  replay_test.cpp
 )
 target_link_libraries(lob_tests PRIVATE lob_core GTest::gtest_main)
 

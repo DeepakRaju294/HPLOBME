@@ -17,10 +17,20 @@ struct OrderAccepted {
     Timestamp timestamp{};
 };
 
+enum class RejectReason {
+    ZeroQuantity,
+    DuplicateOrderId,
+    InvalidPrice,
+    InvalidTimeInForceForOrderType,
+    UnknownOrderId,
+    WouldCross,             // PostOnly order/replace that would take liquidity
+    FillOrKillUnfillable,   // FOK could not be filled in full immediately
+};
+
 struct OrderRejected {
     OrderId order_id{};
+    RejectReason reason{};
     Timestamp timestamp{};
-    // TODO(Milestone 2): rejection reason code/enum.
 };
 
 struct OrderRested {

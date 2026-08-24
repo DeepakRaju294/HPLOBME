@@ -52,6 +52,36 @@ public:
     std::vector<OrderId> order_ids_at_price(Side side, Price price) const;
     std::size_t active_order_count() const noexcept { return order_index_.size(); }
 
+    // --- Matching-engine primitives (MatchingEngine owns matching
+    // decisions; OrderBook only performs the resulting mutations). ---
+
+    bool has_order(OrderId id) const noexcept { return order_index_.contains(id); }
+
+    // Read-only lookup of a resting order by ID, e.g. to snapshot its
+    // fields before a priority-losing replace. nullptr if unknown.
+    const Order* find_order(OrderId id) const;
+
+    // The time-priority order at the best price on `side`, or nullptr if
+    // that side is empty.
+    const Order* best_order(Side side) const;
+
+    // Fills `qty` (<= the best order's remaining_quantity) against the
+    // best resting order on `side`. Removes it (and its price level, if
+    // now empty) if fully filled. Returns the order's remaining_quantity
+    // after the fill (0 if it was removed).
+    Quantity fill_best_order(Side side, Quantity qty);
+
+    // Total quantity matchable against `incoming_side`'s opposite book,
+    // within an optional price bound (nullopt = no bound, i.e. a market
+    // order), capped at `cap` (stops walking once reached). Used for the
+    // FOK all-or-nothing pre-check; never mutates the book.
+    Quantity matchable_quantity(Side incoming_side, std::optional<Price> price_limit, Quantity cap) const;
+
+    // Sets a resting order's quantity in place without moving its FIFO
+    // position -- the priority-preserving replace case (spec section 11).
+    // Returns false if the ID is unknown.
+    bool reduce_quantity_in_place(OrderId id, Quantity new_quantity);
+
     friend bool validate_book_invariants(const OrderBook& book);
 
 private:
@@ -60,6 +90,10 @@ private:
 
     template <typename LevelMap>
     static PriceLevel& level_for(LevelMap& levels, Price price);
+
+    template <typename LevelMap>
+    static Quantity fill_best_order_impl(LevelMap& levels, Quantity qty,
+                                          std::unordered_map<OrderId, OrderLocation>& order_index);
 
     BidLevels bids_;
     AskLevels asks_;
