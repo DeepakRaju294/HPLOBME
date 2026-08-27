@@ -35,6 +35,7 @@ public:
     std::optional<Price> best_bid() const { return book_.best_bid(); }
     std::optional<Price> best_ask() const { return book_.best_ask(); }
     Quantity quantity_at_price(Side side, Price price) const { return book_.quantity_at_price(side, price); }
+    std::size_t active_order_count() const noexcept { return book_.active_order_count(); }
 
     // sequence is stamped with the last market-data sequence number
     // emitted so far (0 if none yet), so a consumer recovering from a gap
