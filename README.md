@@ -11,8 +11,9 @@ performance optimization, and Python-based strategy simulation — rather
 than reproducing a production exchange. See [docs/spec.md](docs/spec.md)
 for the full design spec and rationale.
 
-**Status:** scaffolding only. Milestone 1 (core order book) has not
-started yet — see [Milestones](#milestones) below.
+**Status:** Milestones 1-5 complete (core book, matching engine, replay
+and market data, baseline benchmarks, profile-guided optimization) — see
+[Milestones](#milestones) below.
 
 ## Architecture
 
@@ -45,23 +46,23 @@ state. See `docs/architecture.md` for details.
 ## Repository layout
 
 ```text
-cpp/include/     domain types, book, engine, replay, invariants (headers)
-cpp/src/         implementations (Milestone 1+)
-cpp/tests/       GoogleTest unit + property tests
-cpp/benchmarks/  Google Benchmark harness
+cpp/include/     domain types, book (map + dense), engine, replay, invariants (headers)
+cpp/src/         implementations
+cpp/tests/       GoogleTest unit + property tests (typed over both book representations)
+cpp/benchmarks/  custom benchmark harness + valgrind profiling driver
 bindings/        pybind11 module
 python/          simulator, strategies, analysis, tests
 configs/         market-regime configs (baseline, high-vol, imbalance, shock)
 scripts/         run_simulation.py, run_benchmarks.sh
-results/         benchmark/strategy outputs (charts, raw data)
-docs/            architecture, matching rules, benchmark methodology, perf analysis
+results/         benchmark/profiling outputs (CSVs, callgrind/cachegrind reports)
+docs/            spec, architecture, matching rules, benchmark methodology, perf analysis
 ```
 
 ## Build
 
 Requires CMake 3.20+, a C++20 compiler, and network access on first
-configure (GoogleTest/Google Benchmark/pybind11 are fetched via
-`FetchContent`).
+configure (GoogleTest/pybind11 are fetched via `FetchContent`; the
+benchmark harness itself has no external dependencies).
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -98,24 +99,31 @@ python scripts/run_simulation.py --config configs/baseline.yaml
 bash scripts/run_benchmarks.sh
 ```
 
-See `docs/benchmark_methodology.md` for methodology and controls, and
-`docs/performance_analysis.md` for the baseline -> profile -> optimize ->
-measure story once Milestone 5 lands.
+Runs the 27-configuration suite (6 required operations + mixed-event-
+stream across 3 workload classes, each at 1k/10k/100k active orders)
+against both `MatchingEngine` (pooled `std::map`) and `DenseMatchingEngine`
+(pooled dense tick-indexed array), writing CSVs to `results/`. See
+`docs/benchmark_methodology.md` for methodology and controls, and
+`docs/performance_analysis.md` for the full baseline -> profile ->
+optimize -> measure story, including where the dense representation wins
+and where it doesn't.
 
 ## Milestones
 
-1. Core book (domain types, baseline map-based price levels, FIFO,
-   order index, add/cancel, best bid/ask, invariants)
-2. Matching engine (limit/market orders, partial fills, trades, GTC/IOC/
-   FOK/PostOnly, replace)
-3. Replay and market data (structured events, sequenced market data,
-   snapshots, replay tool, state hashing)
-4. Baseline benchmarks
-5. Performance optimization (dense price levels, order pooling, profiling)
-6. Python integration (pybind11, simulation event loop, deterministic seeds)
-7. Market maker (fixed-spread baseline, inventory-aware strategy, PnL/
-   inventory/adverse-selection accounting)
-8. Final presentation (README, charts, reproduction script)
+- [x] 1. Core book (domain types, baseline map-based price levels, FIFO,
+      order index, add/cancel, best bid/ask, invariants)
+- [x] 2. Matching engine (limit/market orders, partial fills, trades, GTC/
+      IOC/FOK/PostOnly, replace)
+- [x] 3. Replay and market data (structured events, sequenced market data,
+      snapshots, replay tool, state hashing)
+- [x] 4. Baseline benchmarks
+- [x] 5. Performance optimization (dense price levels, order pooling,
+      profiling) -- see `docs/performance_analysis.md`
+- [ ] 6. Python integration (pybind11, simulation event loop, deterministic
+      seeds)
+- [ ] 7. Market maker (fixed-spread baseline, inventory-aware strategy,
+      PnL/inventory/adverse-selection accounting)
+- [ ] 8. Final presentation (README, charts, reproduction script)
 
 ## Non-goals
 
@@ -129,6 +137,6 @@ production-level nanosecond latency claims are explicitly out of scope.
 
 This is a synthetic, educational system. Benchmark numbers reflect a
 specific workload/hardware/compiler configuration documented alongside
-each result, not exchange-production performance. See
-`docs/performance_analysis.md` and `docs/benchmark_methodology.md` once
-populated.
+each result (an unpinned developer laptop, not an isolated benchmark
+host), not exchange-production performance. See
+`docs/performance_analysis.md` and `docs/benchmark_methodology.md`.

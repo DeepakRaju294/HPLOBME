@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(lob_tests
   sanity_test.cpp
   order_book_test.cpp
+  dense_order_book_test.cpp
   matching_engine_test.cpp
   market_data_test.cpp
   replay_test.cpp

@@ -11,8 +11,6 @@ const WorkloadMix kMatchHeavy{"match_heavy(40/20/40)", 0.40, 0.20, 0.40};
 
 namespace {
 
-constexpr Price kMidPrice = 1'000'000;
-
 NewOrder make_new_order(OrderId id, Side side, Price price, Quantity qty, TimeInForce tif, Timestamp ts) {
     NewOrder cmd{};
     cmd.id = id;

@@ -18,6 +18,7 @@ option(LOB_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 add_library(lob_core STATIC
   cpp/src/price_level.cpp
   cpp/src/order_book.cpp
+  cpp/src/dense_order_book.cpp
   cpp/src/invariants.cpp
   cpp/src/matching_engine.cpp
   cpp/src/replay.cpp

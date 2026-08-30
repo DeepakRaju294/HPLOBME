@@ -31,9 +31,13 @@ This document tracks what's actually built, updated as milestones land.
 ## Component responsibilities
 
 * **`PriceLevel`** (`cpp/include/price_level.hpp`) -- a FIFO queue
-  (`std::list<Order>`) of resting orders at a single price. `std::list`,
-  not `std::deque`/`vector`, so an `OrderLocation` can hold a stable
-  iterator into it, giving O(1) cancel without scanning.
+  (`std::list<Order, PoolAllocator<Order>>`) of resting orders at a
+  single price. `std::list`, not `std::deque`/`vector`, so an
+  `OrderLocation` can hold a stable iterator into it, giving O(1) cancel
+  without scanning. Backed by `PoolAllocator` (`cpp/include/object_pool.hpp`)
+  rather than the default allocator -- profiling showed per-order node
+  malloc/free dominating the matching hot path; see
+  `docs/performance_analysis.md`.
 * **`OrderBook`** (`cpp/include/order_book.hpp`) -- the baseline
   `std::map<Price, PriceLevel>` book (spec section 8.1), plus an
   `unordered_map<OrderId, OrderLocation>` index. Pure resting-order
@@ -41,8 +45,23 @@ This document tracks what's actually built, updated as milestones land.
   mutations `MatchingEngine` decides on (`add_order`, `cancel_order`,
   `fill_best_order`, `reduce_quantity_in_place`, `matchable_quantity`,
   `find_order`). Also owns invariant validation and state hashing.
-* **`MatchingEngine`** (`cpp/include/matching_engine.hpp`) -- the only
-  component that makes matching decisions, generates trades, enforces
+* **`DenseOrderBook`** (`cpp/include/dense_order_book.hpp`) -- the dense
+  tick-indexed alternative (spec section 8.2): `std::vector<PriceLevel>`
+  indexed by `price - min_price`, with a cached best-index per side. Same
+  public interface as `OrderBook`, so `MatchingEngineT<BookType>` (below)
+  can use either interchangeably. Benchmarked against `OrderBook` in
+  `docs/performance_analysis.md` -- faster for add/replace/mixed
+  workloads, slower for match-heavy sweeps over sparse-relative-to-range
+  books, a tradeoff rather than a strict win.
+* **`MatchingEngineT<BookType>`** (`cpp/include/matching_engine.hpp`) --
+  the matching engine is a class template, explicitly instantiated as
+  `MatchingEngine` (`= MatchingEngineT<OrderBook>`, the default/production
+  instantiation) and `DenseMatchingEngine`
+  (`= MatchingEngineT<DenseOrderBook>`). Both run identical matching logic;
+  only the underlying price-level storage differs, which is what makes
+  the correctness-parity tests (`matching_engine_test.cpp`'s `TYPED_TEST`s)
+  and the performance comparison meaningful. This is the only component
+  that makes matching decisions, generates trades, enforces
   time-in-force semantics, and assigns market-data sequence numbers. See
   `docs/matching_rules.md` for the exact rules.
 * **`invariants.hpp`/`.cpp`** -- the book-state checks from spec section

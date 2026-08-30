@@ -1,0 +1,60 @@
+--------------------------------------------------------------------------------
+Profile data file 'callgrind.out' (creator: callgrind-3.18.1)
+--------------------------------------------------------------------------------
+I1 cache: 
+D1 cache: 
+LL cache: 
+Timerange: Basic block 0 - 179473985
+Trigger: Program termination
+Profiled target:  /mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver (PID 748, part 1)
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Thresholds:       99
+Include dirs:     
+User annotated:   
+Auto-annotation:  on
+
+--------------------------------------------------------------------------------
+Ir                   
+--------------------------------------------------------------------------------
+856,211,564 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+Ir                    file:function
+--------------------------------------------------------------------------------
+110,917,777 (12.95%)  ./malloc/./malloc/malloc.c:_int_free [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 98,412,076 (11.49%)  ./malloc/./malloc/malloc.c:_int_malloc [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 79,060,613 ( 9.23%)  ???:lob::OrderBook::add_order(lob::Order const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 65,565,273 ( 7.66%)  ./malloc/./malloc/malloc.c:malloc [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 53,013,709 ( 6.19%)  ???:lob::OrderBook::quantity_at_price(lob::Side, long) const [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 48,442,856 ( 5.66%)  ???:void std::vector<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted>, std::allocator<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted> > >::_M_realloc_insert<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted> >(__gnu_cxx::__normal_iterator<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted>*, std::vector<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted>, std::allocator<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted> > > >, std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted>&&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 36,817,842 ( 4.30%)  ./malloc/./malloc/malloc.c:malloc_consolidate [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 33,196,422 ( 3.88%)  ./malloc/./malloc/malloc.c:free [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 31,421,608 ( 3.67%)  ???:lob::MatchingEngine::process_new_order(lob::NewOrder const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 28,214,098 ( 3.30%)  ???:std::pair<std::_Rb_tree_iterator<std::pair<long const, lob::PriceLevel> >, bool> std::_Rb_tree<long, std::pair<long const, lob::PriceLevel>, std::_Select1st<std::pair<long const, lob::PriceLevel> >, std::greater<long>, std::allocator<std::pair<long const, lob::PriceLevel> > >::_M_emplace_unique<long&, lob::PriceLevel>(long&, lob::PriceLevel&&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 28,214,098 ( 3.30%)  ???:std::pair<std::_Rb_tree_iterator<std::pair<long const, lob::PriceLevel> >, bool> std::_Rb_tree<long, std::pair<long const, lob::PriceLevel>, std::_Select1st<std::pair<long const, lob::PriceLevel> >, std::less<long>, std::allocator<std::pair<long const, lob::PriceLevel> > >::_M_emplace_unique<long&, lob::PriceLevel>(long&, lob::PriceLevel&&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 25,618,072 ( 2.99%)  ???:lob::OrderBook::state_hash() const [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 20,534,492 ( 2.40%)  ???:void std::vector<lob::MarketDataEvent, std::allocator<lob::MarketDataEvent> >::_M_realloc_insert<lob::MarketDataEvent const&>(__gnu_cxx::__normal_iterator<lob::MarketDataEvent*, std::vector<lob::MarketDataEvent, std::allocator<lob::MarketDataEvent> > >, lob::MarketDataEvent const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 18,811,108 ( 2.20%)  ???:std::_Rb_tree_insert_and_rebalance(bool, std::_Rb_tree_node_base*, std::_Rb_tree_node_base*, std::_Rb_tree_node_base&) [/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30]
+ 18,107,100 ( 2.11%)  ???:operator new(unsigned long) [/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30]
+ 15,336,905 ( 1.79%)  ./malloc/./malloc/malloc.c:unlink_chunk.constprop.0 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 14,310,457 ( 1.67%)  ???:lob::MatchingEngine::walk_match(lob::Order&, std::vector<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted>, std::allocator<std::variant<lob::OrderAccepted, lob::OrderRejected, lob::OrderRested, lob::OrderPartiallyFilled, lob::OrderFilled, lob::OrderCancelled, lob::OrderReplaced, lob::TradeExecuted> > >&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+ 13,502,106 ( 1.58%)  ???:lob::MatchingEngine::rest_order(lob::Order const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  9,391,093 ( 1.10%)  /mnt/c/Users/Deepa/Projects/HPLOBMMS/cpp/benchmarks/workload.cpp:lob::bench::generate_mixed_workload(lob::bench::WorkloadMix const&, unsigned long, unsigned long, unsigned long) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  8,341,995 ( 0.97%)  ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:__memset_avx2_unaligned_erms [/usr/lib/x86_64-linux-gnu/libc.so.6]
+  6,816,829 ( 0.80%)  ???:std::_Hashtable<unsigned long, std::pair<unsigned long const, lob::OrderLocation>, std::allocator<std::pair<unsigned long const, lob::OrderLocation> >, std::__detail::_Select1st, std::equal_to<unsigned long>, std::hash<unsigned long>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_M_rehash(unsigned long, unsigned long const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  6,751,053 ( 0.79%)  ???:lob::PriceLevel::push_back(lob::Order const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  4,701,144 ( 0.55%)  /mnt/c/Users/Deepa/Projects/HPLOBMMS/cpp/benchmarks/profile_driver.cpp:main [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  4,526,751 ( 0.53%)  ./malloc/./malloc/arena.c:free
+  4,456,442 ( 0.52%)  /usr/include/c++/11/bits/stl_uninitialized.h:void std::vector<lob::bench::WorkloadOp, std::allocator<lob::bench::WorkloadOp> >::_M_realloc_insert<lob::bench::WorkloadOp>(__gnu_cxx::__normal_iterator<lob::bench::WorkloadOp*, std::vector<lob::bench::WorkloadOp, std::allocator<lob::bench::WorkloadOp> > >, lob::bench::WorkloadOp&&)
+  3,871,200 ( 0.45%)  ???:lob::MatchingEngine::submit(lob::NewOrder const&) [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  3,144,672 ( 0.37%)  ???:lob::MatchingEngine::drain_market_data() [/mnt/c/Users/Deepa/Projects/HPLOBMMS/build-linux/cpp/benchmarks/lob_profile_driver]
+  3,017,857 ( 0.35%)  ???:0x00000000048e90d0 [???]
+  3,017,855 ( 0.35%)  ???:0x00000000048e92e0 [???]
+  3,017,855 ( 0.35%)  ???:0x00000000048e9b30 [???]
+  3,017,850 ( 0.35%)  ???:0x000000000010a310 [???]
+  3,017,850 ( 0.35%)  ???:0x000000000010a320 [???]
+  3,017,850 ( 0.35%)  ???:operator delete(void*) [/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30]
+  3,017,850 ( 0.35%)  ???:operator delete(void*, unsigned long) [/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30]
+  2,759,184 ( 0.32%)  ???:std::_Rb_tree_increment(std::_Rb_tree_node_base const*) [/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30]

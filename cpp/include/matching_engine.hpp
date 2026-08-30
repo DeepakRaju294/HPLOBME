@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
+#include "dense_order_book.hpp"
 #include "events.hpp"
 #include "market_data.hpp"
 #include "order.hpp"
@@ -11,17 +13,38 @@
 
 namespace lob {
 
-// Single-threaded matching engine. Owns all mutable book state and is the
-// sole source of engine events (order lifecycle, returned synchronously
-// from submit/cancel/replace) and the sequenced public market-data feed
-// (buffered internally, drained via drain_market_data()). Core engine
-// code must remain independent of Python.
+// Single-threaded matching engine, templated on its book representation
+// so the std::map-based OrderBook and the dense tick-indexed
+// DenseOrderBook (spec section 8.2) run through byte-for-byte identical
+// matching logic -- only the underlying price-level storage differs.
+// This is what makes the Milestone 5 benchmark comparison and the
+// correctness-parity tests (matching_engine_test.cpp) meaningful: any
+// difference in behavior between MatchingEngine and DenseMatchingEngine
+// would be a bug, not a legitimate tradeoff. See
+// docs/performance_analysis.md.
+//
+// `MatchingEngine` (OrderBook) is the default/production instantiation;
+// `DenseMatchingEngine` (DenseOrderBook) is Milestone 5's optimized
+// alternative.
+//
+// Owns all mutable book state and is the sole source of engine events
+// (order lifecycle, returned synchronously from submit/cancel/replace)
+// and the sequenced public market-data feed (buffered internally,
+// drained via drain_market_data()). Core engine code must remain
+// independent of Python.
 //
 // Market-data Add/Modify/Delete events describe price-level (L2)
 // aggregate quantity, matching what snapshot() reports -- not individual
 // order quantities. See docs/matching_rules.md.
-class MatchingEngine {
+template <typename BookType>
+class MatchingEngineT {
 public:
+    // Forwards to BookType's constructor: OrderBook is default-
+    // constructible (`MatchingEngine engine;`); DenseOrderBook requires a
+    // price range (`DenseMatchingEngine engine(min_price, max_price);`).
+    template <typename... Args>
+    explicit MatchingEngineT(Args&&... args) : book_(std::forward<Args>(args)...) {}
+
     std::vector<EngineEvent> submit(const NewOrder& cmd);
     std::vector<EngineEvent> cancel(const CancelOrder& cmd);
     std::vector<EngineEvent> replace(const ReplaceOrder& cmd);
@@ -68,11 +91,14 @@ private:
     MarketDataEvent& push_market_data(MarketDataEventType type, Side side, Price price,
                                        Quantity quantity, Timestamp timestamp);
 
-    OrderBook book_;
+    BookType book_;
     std::vector<MarketDataEvent> market_data_queue_;
     SequenceNumber next_sequence_{1};
     TradeId next_trade_id_{1};
     Timestamp last_timestamp_{0};
 };
+
+using MatchingEngine = MatchingEngineT<OrderBook>;
+using DenseMatchingEngine = MatchingEngineT<DenseOrderBook>;
 
 } // namespace lob

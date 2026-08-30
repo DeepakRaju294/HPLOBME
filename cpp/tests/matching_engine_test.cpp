@@ -1,6 +1,15 @@
+// Runs the full matching-behavior suite against BOTH MatchingEngine
+// (std::map-based OrderBook) and DenseMatchingEngine (dense tick-indexed
+// DenseOrderBook, spec section 8.2) via GoogleTest typed tests. The two
+// representations share identical matching logic (MatchingEngineT is a
+// single template instantiated over each book type -- see
+// matching_engine.hpp), so any behavioral difference caught here would be
+// a genuine correctness bug in one of the book implementations, not a
+// legitimate performance/memory tradeoff.
 #include <gtest/gtest.h>
 
 #include <random>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -9,6 +18,17 @@
 using namespace lob;
 
 namespace {
+
+// DenseMatchingEngine needs an explicit price range; MatchingEngine
+// doesn't. [1, 300] comfortably covers every price this file uses.
+template <typename EngineType>
+EngineType make_engine() {
+    if constexpr (std::is_same_v<EngineType, DenseMatchingEngine>) {
+        return DenseMatchingEngine(1, 300);
+    } else {
+        return EngineType{};
+    }
+}
 
 NewOrder make_new_order(OrderId id, Side side, Price price, Quantity qty,
                          TimeInForce tif = TimeInForce::GoodTillCancel,
@@ -40,12 +60,19 @@ int count_trades(const std::vector<EngineEvent>& events) {
     return count;
 }
 
+template <typename EngineType>
+class MatchingEngineTest : public ::testing::Test {};
+
+using EngineTypes = ::testing::Types<MatchingEngine, DenseMatchingEngine>;
+
 } // namespace
+
+TYPED_TEST_SUITE(MatchingEngineTest, EngineTypes);
 
 // --- Matching ---
 
-TEST(MatchingEngine, FullFillAgainstSingleRestingOrder) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, FullFillAgainstSingleRestingOrder) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 10));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 10));
@@ -64,8 +91,8 @@ TEST(MatchingEngine, FullFillAgainstSingleRestingOrder) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, PartialFillLeavesResidualOnMaker) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, PartialFillLeavesResidualOnMaker) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 10));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 4));
@@ -85,8 +112,8 @@ TEST(MatchingEngine, PartialFillLeavesResidualOnMaker) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, MultiOrderSweepRespectsFifoWithinLevel) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MultiOrderSweepRespectsFifoWithinLevel) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
     engine.submit(make_new_order(2, Side::Sell, 50, 5));
     engine.submit(make_new_order(3, Side::Sell, 50, 5));
@@ -105,8 +132,8 @@ TEST(MatchingEngine, MultiOrderSweepRespectsFifoWithinLevel) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, MultiLevelSweepConsumesBestPricesFirst) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MultiLevelSweepConsumesBestPricesFirst) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
     engine.submit(make_new_order(2, Side::Sell, 51, 5));
     engine.submit(make_new_order(3, Side::Sell, 52, 5));
@@ -123,8 +150,8 @@ TEST(MatchingEngine, MultiLevelSweepConsumesBestPricesFirst) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, TradeExecutesAtMakerPriceNotTakerLimit) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, TradeExecutesAtMakerPriceNotTakerLimit) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 105, 10)); // resting bid
 
     auto events = engine.submit(make_new_order(2, Side::Sell, 95, 10)); // aggressive sell
@@ -136,8 +163,8 @@ TEST(MatchingEngine, TradeExecutesAtMakerPriceNotTakerLimit) {
 
 // --- Lifecycle ---
 
-TEST(MatchingEngine, CancelUnknownIdIsRejected) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, CancelUnknownIdIsRejected) {
+    TypeParam engine = make_engine<TypeParam>();
     CancelOrder cmd{};
     cmd.id = 999;
     auto events = engine.cancel(cmd);
@@ -147,8 +174,8 @@ TEST(MatchingEngine, CancelUnknownIdIsRejected) {
     EXPECT_EQ(rejected->reason, RejectReason::UnknownOrderId);
 }
 
-TEST(MatchingEngine, RepeatedCancelRejectsSecondAttempt) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, RepeatedCancelRejectsSecondAttempt) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 10));
 
     CancelOrder cmd{};
@@ -160,8 +187,8 @@ TEST(MatchingEngine, RepeatedCancelRejectsSecondAttempt) {
     ASSERT_TRUE(event_as<OrderRejected>(second[0]));
 }
 
-TEST(MatchingEngine, PriorityPreservingReplaceKeepsFifoPosition) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, PriorityPreservingReplaceKeepsFifoPosition) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 10));
     engine.submit(make_new_order(2, Side::Buy, 50, 20));
 
@@ -185,8 +212,8 @@ TEST(MatchingEngine, PriorityPreservingReplaceKeepsFifoPosition) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, PriorityLosingReplaceOnQuantityIncreaseMovesToBack) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, PriorityLosingReplaceOnQuantityIncreaseMovesToBack) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 10));
     engine.submit(make_new_order(2, Side::Buy, 50, 5));
 
@@ -207,8 +234,8 @@ TEST(MatchingEngine, PriorityLosingReplaceOnQuantityIncreaseMovesToBack) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, CrossingReplaceExecutesImmediately) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, CrossingReplaceExecutesImmediately) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 10));
     engine.submit(make_new_order(2, Side::Sell, 70, 10));
 
@@ -227,8 +254,8 @@ TEST(MatchingEngine, CrossingReplaceExecutesImmediately) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, ReplaceAfterFillIsRejectedAsUnknown) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, ReplaceAfterFillIsRejectedAsUnknown) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 5));
     engine.submit(make_new_order(2, Side::Sell, 50, 5, TimeInForce::ImmediateOrCancel)); // fully fills & removes order 1
 
@@ -245,8 +272,8 @@ TEST(MatchingEngine, ReplaceAfterFillIsRejectedAsUnknown) {
 
 // --- Time in force ---
 
-TEST(MatchingEngine, IocCancelsUnfilledResidual) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, IocCancelsUnfilledResidual) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 10, TimeInForce::ImmediateOrCancel));
@@ -260,16 +287,16 @@ TEST(MatchingEngine, IocCancelsUnfilledResidual) {
     EXPECT_FALSE(engine.best_bid().has_value()); // never rested
 }
 
-TEST(MatchingEngine, IocAgainstEmptyBookCancelsImmediately) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, IocAgainstEmptyBookCancelsImmediately) {
+    TypeParam engine = make_engine<TypeParam>();
     auto events = engine.submit(make_new_order(1, Side::Buy, 50, 10, TimeInForce::ImmediateOrCancel));
     ASSERT_EQ(events.size(), 2u); // Accepted, Cancelled -- no fill occurred
     ASSERT_TRUE(event_as<OrderAccepted>(events[0]));
     ASSERT_TRUE(event_as<OrderCancelled>(events[1]));
 }
 
-TEST(MatchingEngine, FokRejectsWhenNotFullyFillable) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, FokRejectsWhenNotFullyFillable) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 10, TimeInForce::FillOrKill));
@@ -282,8 +309,8 @@ TEST(MatchingEngine, FokRejectsWhenNotFullyFillable) {
     EXPECT_EQ(engine.quantity_at_price(Side::Sell, 50), 5u);
 }
 
-TEST(MatchingEngine, FokExecutesFullyWhenFillable) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, FokExecutesFullyWhenFillable) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 10));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 10, TimeInForce::FillOrKill));
@@ -293,8 +320,8 @@ TEST(MatchingEngine, FokExecutesFullyWhenFillable) {
     ASSERT_TRUE(event_as<OrderFilled>(events.back()));
 }
 
-TEST(MatchingEngine, PostOnlyRejectsWhenItWouldCross) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, PostOnlyRejectsWhenItWouldCross) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 10));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 60, 10, TimeInForce::PostOnly));
@@ -305,8 +332,8 @@ TEST(MatchingEngine, PostOnlyRejectsWhenItWouldCross) {
     EXPECT_EQ(rejected->reason, RejectReason::WouldCross);
 }
 
-TEST(MatchingEngine, PostOnlyRestsWhenItWouldNotCross) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, PostOnlyRestsWhenItWouldNotCross) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 10));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 40, 10, TimeInForce::PostOnly));
@@ -319,8 +346,8 @@ TEST(MatchingEngine, PostOnlyRestsWhenItWouldNotCross) {
 
 // --- Market orders ---
 
-TEST(MatchingEngine, MarketOrderSweepsMultipleLevels) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MarketOrderSweepsMultipleLevels) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
     engine.submit(make_new_order(2, Side::Sell, 51, 5));
 
@@ -331,8 +358,8 @@ TEST(MatchingEngine, MarketOrderSweepsMultipleLevels) {
     EXPECT_TRUE(engine.validate_invariants());
 }
 
-TEST(MatchingEngine, MarketOrderCancelsResidualWhenBookExhausted) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MarketOrderCancelsResidualWhenBookExhausted) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 0, 10, TimeInForce::ImmediateOrCancel, OrderType::Market));
@@ -341,8 +368,8 @@ TEST(MatchingEngine, MarketOrderCancelsResidualWhenBookExhausted) {
     ASSERT_TRUE(event_as<OrderCancelled>(events.back()));
 }
 
-TEST(MatchingEngine, MarketFokRequiresTotalLiquidityAcrossAllPrices) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MarketFokRequiresTotalLiquidityAcrossAllPrices) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Sell, 50, 5));
 
     auto events = engine.submit(make_new_order(2, Side::Buy, 0, 10, TimeInForce::FillOrKill, OrderType::Market));
@@ -353,8 +380,8 @@ TEST(MatchingEngine, MarketFokRequiresTotalLiquidityAcrossAllPrices) {
     EXPECT_EQ(rejected->reason, RejectReason::FillOrKillUnfillable);
 }
 
-TEST(MatchingEngine, MarketOrderRejectsGoodTillCancel) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MarketOrderRejectsGoodTillCancel) {
+    TypeParam engine = make_engine<TypeParam>();
     auto events = engine.submit(make_new_order(1, Side::Buy, 0, 10, TimeInForce::GoodTillCancel, OrderType::Market));
     ASSERT_EQ(events.size(), 1u);
     const auto* rejected = event_as<OrderRejected>(events[0]);
@@ -362,8 +389,8 @@ TEST(MatchingEngine, MarketOrderRejectsGoodTillCancel) {
     EXPECT_EQ(rejected->reason, RejectReason::InvalidTimeInForceForOrderType);
 }
 
-TEST(MatchingEngine, MarketOrderRejectsPostOnly) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, MarketOrderRejectsPostOnly) {
+    TypeParam engine = make_engine<TypeParam>();
     auto events = engine.submit(make_new_order(1, Side::Buy, 0, 10, TimeInForce::PostOnly, OrderType::Market));
     ASSERT_EQ(events.size(), 1u);
     const auto* rejected = event_as<OrderRejected>(events[0]);
@@ -373,8 +400,8 @@ TEST(MatchingEngine, MarketOrderRejectsPostOnly) {
 
 // --- Edge cases ---
 
-TEST(MatchingEngine, DuplicateOrderIdIsRejected) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, DuplicateOrderIdIsRejected) {
+    TypeParam engine = make_engine<TypeParam>();
     engine.submit(make_new_order(1, Side::Buy, 50, 10));
     auto events = engine.submit(make_new_order(1, Side::Sell, 60, 5));
     ASSERT_EQ(events.size(), 1u);
@@ -383,15 +410,15 @@ TEST(MatchingEngine, DuplicateOrderIdIsRejected) {
     EXPECT_EQ(rejected->reason, RejectReason::DuplicateOrderId);
 }
 
-TEST(MatchingEngine, ZeroQuantityIsRejected) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, ZeroQuantityIsRejected) {
+    TypeParam engine = make_engine<TypeParam>();
     auto events = engine.submit(make_new_order(1, Side::Buy, 50, 0));
     ASSERT_EQ(events.size(), 1u);
     EXPECT_EQ(event_as<OrderRejected>(events[0])->reason, RejectReason::ZeroQuantity);
 }
 
-TEST(MatchingEngine, NonPositivePriceIsRejected) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, NonPositivePriceIsRejected) {
+    TypeParam engine = make_engine<TypeParam>();
     auto zero_price = engine.submit(make_new_order(1, Side::Buy, 0, 10));
     EXPECT_EQ(event_as<OrderRejected>(zero_price[0])->reason, RejectReason::InvalidPrice);
 
@@ -399,8 +426,8 @@ TEST(MatchingEngine, NonPositivePriceIsRejected) {
     EXPECT_EQ(event_as<OrderRejected>(negative_price[0])->reason, RejectReason::InvalidPrice);
 }
 
-TEST(MatchingEngine, LargeQuantitiesMatchCorrectly) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, LargeQuantitiesMatchCorrectly) {
+    TypeParam engine = make_engine<TypeParam>();
     const Quantity huge = 1'000'000'000ull;
     engine.submit(make_new_order(1, Side::Sell, 50, huge));
     auto events = engine.submit(make_new_order(2, Side::Buy, 50, huge));
@@ -413,8 +440,8 @@ TEST(MatchingEngine, LargeQuantitiesMatchCorrectly) {
 
 // --- Randomized invariant preservation across the full command set ---
 
-TEST(MatchingEngine, RandomizedCommandSequencePreservesInvariants) {
-    MatchingEngine engine;
+TYPED_TEST(MatchingEngineTest, RandomizedCommandSequencePreservesInvariants) {
+    TypeParam engine = make_engine<TypeParam>();
     std::mt19937 rng(9001); // fixed seed: deterministic per spec section 20
     std::vector<OrderId> submitted_ids;
     OrderId next_id = 1;

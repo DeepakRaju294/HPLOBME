@@ -8,23 +8,17 @@
 
 #include "market_data.hpp"
 #include "order.hpp"
+#include "order_location.hpp"
 #include "price_level.hpp"
 
 namespace lob {
-
-// Where a resting order lives, so cancel/replace never scans the book.
-struct OrderLocation {
-    Side side{};
-    Price price{};
-    PriceLevel::OrderIterator iterator{};
-};
 
 // Price-time-priority limit order book for a single instrument.
 //
 // Baseline representation per spec section 8.1: std::map keyed by price,
 // ordered so that bids_.begin() is the best bid and asks_.begin() is the
-// best ask. A dense tick-indexed alternative (section 8.2) will be added
-// and benchmarked against this one in Milestone 5.
+// best ask. See dense_order_book.hpp for the dense tick-indexed
+// alternative benchmarked against this one in Milestone 5.
 //
 // OrderBook is a pure resting-order container: it does not match or
 // validate commands (that's MatchingEngine's job, section 5.2). Inserting

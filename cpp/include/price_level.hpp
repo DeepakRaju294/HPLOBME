@@ -3,20 +3,26 @@
 #include <cstddef>
 #include <list>
 
+#include "object_pool.hpp"
 #include "order.hpp"
 
 namespace lob {
 
 // FIFO queue of resting orders at a single price. Owned by the baseline
-// std::map<Price, PriceLevel> book (order_book.hpp) and, later, by the
-// dense tick-indexed representation used for the Milestone 5 comparison.
+// std::map<Price, PriceLevel> book (order_book.hpp) and by the dense
+// tick-indexed representation (dense_order_book.hpp) compared against it
+// in Milestone 5.
 //
 // std::list (not deque/vector) so that OrderLocation can hold a stable
 // iterator into this level, giving O(1) cancel/erase without scanning.
+// Backed by PoolAllocator rather than the default allocator: profiling
+// showed per-order node malloc/free dominating the matching hot path
+// (spec section 9's preallocated order pool).
 class PriceLevel {
 public:
-    using OrderIterator = std::list<Order>::iterator;
-    using ConstOrderIterator = std::list<Order>::const_iterator;
+    using OrderList = std::list<Order, PoolAllocator<Order>>;
+    using OrderIterator = OrderList::iterator;
+    using ConstOrderIterator = OrderList::const_iterator;
 
     explicit PriceLevel(Price price) : price_(price) {}
 
@@ -52,7 +58,7 @@ public:
 private:
     Price price_;
     Quantity total_quantity_{};
-    std::list<Order> orders_;
+    OrderList orders_;
 };
 
 } // namespace lob

@@ -9,6 +9,12 @@
 
 namespace lob::bench {
 
+// All generated workloads center their price activity around this tick.
+// Exposed so callers (e.g. the benchmark harness) can size a
+// DenseOrderBook's fixed [min_price, max_price] range to cover whatever
+// any generator might produce.
+constexpr Price kMidPrice = 1'000'000;
+
 enum class OpKind { Submit, Cancel, Replace };
 
 struct WorkloadOp {

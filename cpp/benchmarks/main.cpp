@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "matching_engine.hpp"
@@ -16,7 +17,24 @@ namespace {
 constexpr int kWarmupRepetitions = 1;
 constexpr int kMeasuredRepetitions = 5;
 
-void apply_ops_untimed(MatchingEngine& engine, const std::vector<WorkloadOp>& ops) {
+// DenseMatchingEngine needs an explicit [min_price, max_price]. Generous
+// enough to cover every price any workload generator produces (the
+// widest case is single_match/multi_level_sweep seeding one resting
+// order per tick up to the 100,000-order target, plus the mixed
+// workload's sacrificial-pool offset) -- see workload.cpp.
+constexpr Price kDenseRangeMargin = 150'000;
+
+template <typename EngineType>
+EngineType make_engine() {
+    if constexpr (std::is_same_v<EngineType, DenseMatchingEngine>) {
+        return DenseMatchingEngine(kMidPrice - kDenseRangeMargin, kMidPrice + kDenseRangeMargin);
+    } else {
+        return EngineType{};
+    }
+}
+
+template <typename EngineType>
+void apply_ops_untimed(EngineType& engine, const std::vector<WorkloadOp>& ops) {
     for (const auto& op : ops) {
         switch (op.kind) {
             case OpKind::Submit:
@@ -38,6 +56,7 @@ void apply_ops_untimed(MatchingEngine& engine, const std::vector<WorkloadOp>& op
 // discarded; measured repetitions' per-op latencies are pooled together
 // before computing percentiles, so p99.9 has enough samples behind it to
 // mean something (spec section 23: warm up, multiple repetitions).
+template <typename EngineType>
 BenchmarkResult run_benchmark(const std::string& operation, const std::string& workload_config,
                                const Workload& workload) {
     std::vector<std::uint64_t> pooled_latencies_ns;
@@ -48,7 +67,7 @@ BenchmarkResult run_benchmark(const std::string& operation, const std::string& w
     double total_elapsed_seconds = 0.0;
 
     for (int rep = 0; rep < kWarmupRepetitions + kMeasuredRepetitions; ++rep) {
-        MatchingEngine engine;
+        EngineType engine = make_engine<EngineType>();
         apply_ops_untimed(engine, workload.seed_ops);
 
         const bool measured = rep >= kWarmupRepetitions;
@@ -101,46 +120,67 @@ BenchmarkResult run_benchmark(const std::string& operation, const std::string& w
     return result;
 }
 
-} // namespace
-
-// Baseline benchmark suite (spec section 22). Must be run from the repo
-// root so the "results/baseline_benchmark.csv" relative path resolves
-// correctly -- see scripts/run_benchmarks.sh.
-int main() {
-    print_environment_info();
-    std::cout << '\n';
-
+// The 27-configuration suite (spec section 22): 6 required operations in
+// isolation x 3 active-order targets, plus mixed-event-stream x 3
+// required workload mixes x 3 targets. Identical for every engine type --
+// only the template parameter changes which book representation is under
+// test.
+template <typename EngineType>
+std::vector<BenchmarkResult> run_full_suite() {
     const std::vector<std::size_t> active_order_targets{1'000, 10'000, 100'000};
     constexpr std::uint64_t kSeed = 42; // deterministic: same seed -> same workload every run
     constexpr std::size_t kOpCount = 2000;
 
     std::vector<BenchmarkResult> results;
 
-    // --- Required operations, in isolation ---
     for (std::size_t target : active_order_targets) {
-        results.push_back(run_benchmark("add_existing_level", "n/a",
-                                         generate_add_existing_level_workload(target, kOpCount, kSeed)));
+        results.push_back(run_benchmark<EngineType>("add_existing_level", "n/a",
+                                                      generate_add_existing_level_workload(target, kOpCount, kSeed)));
+        results.push_back(run_benchmark<EngineType>("add_new_level", "n/a",
+                                                      generate_add_new_level_workload(target, kOpCount, kSeed)));
         results.push_back(
-            run_benchmark("add_new_level", "n/a", generate_add_new_level_workload(target, kOpCount, kSeed)));
-        results.push_back(run_benchmark("cancel", "n/a", generate_cancel_workload(target, kOpCount, kSeed)));
-        results.push_back(run_benchmark("replace", "n/a", generate_replace_workload(target, kOpCount, kSeed)));
+            run_benchmark<EngineType>("cancel", "n/a", generate_cancel_workload(target, kOpCount, kSeed)));
         results.push_back(
-            run_benchmark("single_match", "n/a", generate_single_match_workload(target, kOpCount, kSeed)));
-        results.push_back(run_benchmark("multi_level_sweep", "n/a",
-                                         generate_multi_level_sweep_workload(target, kOpCount, 10, kSeed)));
+            run_benchmark<EngineType>("replace", "n/a", generate_replace_workload(target, kOpCount, kSeed)));
+        results.push_back(run_benchmark<EngineType>("single_match", "n/a",
+                                                      generate_single_match_workload(target, kOpCount, kSeed)));
+        results.push_back(run_benchmark<EngineType>(
+            "multi_level_sweep", "n/a", generate_multi_level_sweep_workload(target, kOpCount, 10, kSeed)));
     }
 
-    // --- Mixed event stream, across the three required workload classes ---
     for (std::size_t target : active_order_targets) {
         for (const auto& mix : {kPassiveHeavy, kBalanced, kMatchHeavy}) {
-            results.push_back(run_benchmark("mixed_event_stream", mix.name,
-                                             generate_mixed_workload(mix, target, kOpCount, kSeed)));
+            results.push_back(run_benchmark<EngineType>("mixed_event_stream", mix.name,
+                                                          generate_mixed_workload(mix, target, kOpCount, kSeed)));
         }
     }
 
-    std::cout << '\n';
-    print_report(results);
-    write_csv("results/baseline_benchmark.csv", results);
-    std::cout << "\nWrote results/baseline_benchmark.csv\n";
+    return results;
+}
+
+} // namespace
+
+// Runs the baseline benchmark suite against both book representations
+// (spec section 8.2 requires comparing them). Must be run from the repo
+// root so the "results/*.csv" relative paths resolve correctly -- see
+// scripts/run_benchmarks.sh.
+int main() {
+    print_environment_info();
+
+    std::cout << "\n=== MatchingEngine (std::map price levels + pooled order storage) ===\n\n";
+    auto map_results = run_full_suite<MatchingEngine>();
+    print_report(map_results);
+    write_csv("results/optimized_map_pooled_benchmark.csv", map_results);
+    std::cout << "\nWrote results/optimized_map_pooled_benchmark.csv\n";
+
+    std::cout << "\n=== DenseMatchingEngine (dense tick-indexed price levels + pooled order storage) ===\n\n";
+    auto dense_results = run_full_suite<DenseMatchingEngine>();
+    print_report(dense_results);
+    write_csv("results/optimized_dense_pooled_benchmark.csv", dense_results);
+    std::cout << "\nWrote results/optimized_dense_pooled_benchmark.csv\n";
+
+    std::cout << "\nSee results/baseline_benchmark.csv (Milestone 4: std::map, no pooling) for the\n"
+                 "pre-optimization reference point, and docs/performance_analysis.md for the\n"
+                 "full baseline -> profile -> optimize -> measure comparison.\n";
     return 0;
 }

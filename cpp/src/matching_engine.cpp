@@ -16,7 +16,8 @@ bool time_in_force_valid_for_type(OrderType type, TimeInForce tif) {
     return true; // all four TIFs are valid for Limit orders
 }
 
-bool would_cross(const OrderBook& book, Side side, Price price) {
+template <typename BookType>
+bool would_cross(const BookType& book, Side side, Price price) {
     if (side == Side::Buy) {
         const auto ask = book.best_ask();
         return ask.has_value() && price >= *ask;
@@ -41,8 +42,9 @@ Order build_resting_order(OrderId id, Side side, OrderType type, TimeInForce tif
 
 } // namespace
 
-MarketDataEvent& MatchingEngine::push_market_data(MarketDataEventType type, Side side, Price price,
-                                                    Quantity quantity, Timestamp timestamp) {
+template <typename BookType>
+MarketDataEvent& MatchingEngineT<BookType>::push_market_data(MarketDataEventType type, Side side, Price price,
+                                                               Quantity quantity, Timestamp timestamp) {
     MarketDataEvent event{};
     event.sequence = next_sequence_++;
     event.timestamp = timestamp;
@@ -54,20 +56,23 @@ MarketDataEvent& MatchingEngine::push_market_data(MarketDataEventType type, Side
     return market_data_queue_.back();
 }
 
-std::vector<MarketDataEvent> MatchingEngine::drain_market_data() {
+template <typename BookType>
+std::vector<MarketDataEvent> MatchingEngineT<BookType>::drain_market_data() {
     std::vector<MarketDataEvent> drained;
     std::swap(drained, market_data_queue_);
     return drained;
 }
 
-BookSnapshot MatchingEngine::snapshot(std::size_t depth) const {
+template <typename BookType>
+BookSnapshot MatchingEngineT<BookType>::snapshot(std::size_t depth) const {
     BookSnapshot snap = book_.snapshot(depth);
     snap.sequence = (next_sequence_ > 1) ? (next_sequence_ - 1) : 0;
     snap.timestamp = last_timestamp_;
     return snap;
 }
 
-void MatchingEngine::rest_order(const Order& order) {
+template <typename BookType>
+void MatchingEngineT<BookType>::rest_order(const Order& order) {
     const Quantity before = book_.quantity_at_price(order.side, order.price);
     book_.add_order(order);
     const Quantity after = before + order.remaining_quantity;
@@ -75,7 +80,8 @@ void MatchingEngine::rest_order(const Order& order) {
                       order.side, order.price, after, order.timestamp);
 }
 
-bool MatchingEngine::cancel_and_publish(OrderId id, Timestamp timestamp) {
+template <typename BookType>
+bool MatchingEngineT<BookType>::cancel_and_publish(OrderId id, Timestamp timestamp) {
     const Order* existing = book_.find_order(id);
     if (existing == nullptr) {
         return false;
@@ -89,11 +95,13 @@ bool MatchingEngine::cancel_and_publish(OrderId id, Timestamp timestamp) {
     return true;
 }
 
-std::vector<EngineEvent> MatchingEngine::submit(const NewOrder& cmd) {
+template <typename BookType>
+std::vector<EngineEvent> MatchingEngineT<BookType>::submit(const NewOrder& cmd) {
     return process_new_order(cmd);
 }
 
-std::vector<EngineEvent> MatchingEngine::process_new_order(const NewOrder& cmd) {
+template <typename BookType>
+std::vector<EngineEvent> MatchingEngineT<BookType>::process_new_order(const NewOrder& cmd) {
     last_timestamp_ = cmd.timestamp;
 
     if (cmd.quantity == 0) {
@@ -167,7 +175,8 @@ std::vector<EngineEvent> MatchingEngine::process_new_order(const NewOrder& cmd) 
     return events;
 }
 
-void MatchingEngine::walk_match(Order& incoming, std::vector<EngineEvent>& events) {
+template <typename BookType>
+void MatchingEngineT<BookType>::walk_match(Order& incoming, std::vector<EngineEvent>& events) {
     const Side opposite = (incoming.side == Side::Buy) ? Side::Sell : Side::Buy;
 
     while (incoming.remaining_quantity > 0) {
@@ -219,7 +228,8 @@ void MatchingEngine::walk_match(Order& incoming, std::vector<EngineEvent>& event
     }
 }
 
-std::vector<EngineEvent> MatchingEngine::cancel(const CancelOrder& cmd) {
+template <typename BookType>
+std::vector<EngineEvent> MatchingEngineT<BookType>::cancel(const CancelOrder& cmd) {
     last_timestamp_ = cmd.timestamp;
     if (cancel_and_publish(cmd.id, cmd.timestamp)) {
         return {OrderCancelled{cmd.id, cmd.timestamp}};
@@ -227,7 +237,8 @@ std::vector<EngineEvent> MatchingEngine::cancel(const CancelOrder& cmd) {
     return {OrderRejected{cmd.id, RejectReason::UnknownOrderId, cmd.timestamp}};
 }
 
-std::vector<EngineEvent> MatchingEngine::replace(const ReplaceOrder& cmd) {
+template <typename BookType>
+std::vector<EngineEvent> MatchingEngineT<BookType>::replace(const ReplaceOrder& cmd) {
     last_timestamp_ = cmd.timestamp;
 
     const Order* existing = book_.find_order(cmd.id);
@@ -292,5 +303,12 @@ std::vector<EngineEvent> MatchingEngine::replace(const ReplaceOrder& cmd) {
     events.push_back(OrderRested{cmd.id, incoming.price, incoming.remaining_quantity, cmd.timestamp});
     return events;
 }
+
+// Explicit instantiation: MatchingEngineT is only ever used with these
+// two book types (see the MatchingEngine/DenseMatchingEngine aliases in
+// matching_engine.hpp), so the template body lives here in the .cpp
+// rather than bloating the header.
+template class MatchingEngineT<OrderBook>;
+template class MatchingEngineT<DenseOrderBook>;
 
 } // namespace lob

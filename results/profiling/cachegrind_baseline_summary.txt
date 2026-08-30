@@ -1,0 +1,20 @@
+==763== brk segment overflow in thread #1: can't grow to 0x4853000
+==763== (see section Limitations in user manual)
+==763== NOTE: further instances of this message will not be shown
+active_orders=229945 state_hash=11875299251417786789
+==763== 
+==763== I   refs:      856,234,400
+==763== I1  misses:          2,626
+==763== LLi misses:          2,544
+==763== I1  miss rate:        0.00%
+==763== LLi miss rate:        0.00%
+==763== 
+==763== D   refs:      362,951,209  (233,307,476 rd   + 129,643,733 wr)
+==763== D1  misses:      7,559,327  (  5,687,016 rd   +   1,872,311 wr)
+==763== LLd misses:      6,324,779  (  4,548,226 rd   +   1,776,553 wr)
+==763== D1  miss rate:         2.1% (        2.4%     +         1.4%  )
+==763== LLd miss rate:         1.7% (        1.9%     +         1.4%  )
+==763== 
+==763== LL refs:         7,561,953  (  5,689,642 rd   +   1,872,311 wr)
+==763== LL misses:       6,327,323  (  4,550,770 rd   +   1,776,553 wr)
+==763== LL miss rate:          0.5% (        0.4%     +         1.4%  )
