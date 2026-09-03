@@ -74,8 +74,15 @@ To build the Python bindings as well:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLOB_BUILD_PYTHON_BINDINGS=ON
-cmake --build build
+cmake --build build --target lob_engine
 ```
+
+On Windows, if CMake picks up an unexpected Python version (e.g. a Store
+app-execution-alias shadowing a real install on `PATH`), pin it
+explicitly: add `-DPYTHON_EXECUTABLE=/path/to/python.exe` to the configure
+command. The built module must match the interpreter that will `import`
+it -- `python/simulator/engine.py` loads whichever `build*/bindings/`
+module it finds, so keep to one Python version per build directory.
 
 Sanitizer builds (required before merging matching-engine changes):
 
@@ -87,11 +94,22 @@ ctest --test-dir build-asan
 
 ## Python
 
+Requires the C++ bindings built first (see above -- `lob_engine` target).
+
 ```bash
 pip install -r requirements.txt
 python -m pytest python/tests
 python scripts/run_simulation.py --config configs/baseline.yaml
 ```
+
+The simulator (`python/simulator/`) drives a discrete-event loop --
+advance time, update the reference price, generate synthetic external
+order flow, submit it to the C++ `MatchingEngine`, record metrics --
+entirely through the pybind11 bindings; it never reimplements matching
+logic. A market maker plugs in via the `MarketMakerStrategy` interface
+(`NullStrategy` for now; real strategies land in Milestone 7). Given the
+same config and seed, a run reproduces exactly, including the final
+engine state hash.
 
 ## Benchmarks
 
@@ -119,7 +137,7 @@ and where it doesn't.
 - [x] 4. Baseline benchmarks
 - [x] 5. Performance optimization (dense price levels, order pooling,
       profiling) -- see `docs/performance_analysis.md`
-- [ ] 6. Python integration (pybind11, simulation event loop, deterministic
+- [x] 6. Python integration (pybind11, simulation event loop, deterministic
       seeds)
 - [ ] 7. Market maker (fixed-spread baseline, inventory-aware strategy,
       PnL/inventory/adverse-selection accounting)
