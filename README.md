@@ -11,9 +11,9 @@ performance optimization, and Python-based strategy simulation — rather
 than reproducing a production exchange. See [docs/spec.md](docs/spec.md)
 for the full design spec and rationale.
 
-**Status:** Milestones 1-5 complete (core book, matching engine, replay
-and market data, baseline benchmarks, profile-guided optimization) — see
-[Milestones](#milestones) below.
+**Status:** All eight core milestones are complete. The repository includes
+the matching system, deterministic simulator, market-making evaluation,
+benchmark/strategy charts, and an end-to-end reproduction script.
 
 ## Architecture
 
@@ -106,10 +106,21 @@ The simulator (`python/simulator/`) drives a discrete-event loop --
 advance time, update the reference price, generate synthetic external
 order flow, submit it to the C++ `MatchingEngine`, record metrics --
 entirely through the pybind11 bindings; it never reimplements matching
-logic. A market maker plugs in via the `MarketMakerStrategy` interface
-(`NullStrategy` for now; real strategies land in Milestone 7). Given the
-same config and seed, a run reproduces exactly, including the final
-engine state hash.
+logic. A market maker plugs in via the `MarketMakerStrategy` interface. The
+config selects `fixed_spread`, `inventory_aware`, or `null`. Results include
+marked-to-market PnL, drawdown, inventory, fills, spread capture, and one-step
+adverse selection. Given the same config and seed, a run reproduces exactly.
+
+Run all required regimes and regenerate the figures:
+
+```bash
+python scripts/generate_charts.py
+```
+
+Outputs are [strategy results](results/strategy_summary.csv),
+[strategy charts](results/strategy_charts.png), and
+[benchmark charts](results/benchmark_charts.png). See
+[strategy analysis](docs/strategy_analysis.md) for definitions.
 
 ## Benchmarks
 
@@ -139,9 +150,22 @@ and where it doesn't.
       profiling) -- see `docs/performance_analysis.md`
 - [x] 6. Python integration (pybind11, simulation event loop, deterministic
       seeds)
-- [ ] 7. Market maker (fixed-spread baseline, inventory-aware strategy,
+- [x] 7. Market maker (fixed-spread baseline, inventory-aware strategy,
       PnL/inventory/adverse-selection accounting)
-- [ ] 8. Final presentation (README, charts, reproduction script)
+- [x] 8. Final presentation (README, charts, reproduction script)
+
+## Reproduce everything
+
+From a clone on Linux, macOS, or Windows with Git Bash, this installs Python
+dependencies, builds, tests, explicitly verifies replay, benchmarks, simulates,
+and regenerates all charts:
+
+```bash
+bash scripts/reproduce.sh
+```
+
+`ctest --test-dir build -R Replay --output-on-failure` is the standalone
+replay-verification command.
 
 ## Non-goals
 

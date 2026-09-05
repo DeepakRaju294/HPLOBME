@@ -6,10 +6,10 @@ This document tracks what's actually built, updated as milestones land.
 ## Overview
 
 ```text
-                    Python Simulator          (Milestone 6/7)
+                    Python Simulator
               order flow / market maker
                          |
-                      pybind11                (Milestone 6)
+                      pybind11
                          |
                          v
                 Matching Engine
@@ -69,6 +69,11 @@ This document tracks what's actually built, updated as milestones land.
 * **`replay.hpp`/`.cpp`** -- `CommandLogWriter` (records a command
   sequence plus its outcome) and `replay_from_file` (verifies a fresh
   engine reproduces that outcome exactly). See "Replay" below.
+* **`python/simulator/strategy.py`** -- fixed-spread and inventory-aware
+  quoting, quote lifecycle and risk controls, fill attribution, and accounting.
+  It only sends commands to C++; it never duplicates matching.
+* **`python/simulator/simulation.py`** -- deterministic reference-price and
+  external-flow orchestration, event routing, and per-step analysis metrics.
 
 ## Data flow
 

@@ -14,7 +14,10 @@ from .config import (
     load_config,
 )
 from .simulation import Simulator, SimulationResult, StepMetrics
-from .strategy import MarketMakerStrategy, NullStrategy
+from .strategy import (
+    FixedSpreadStrategy, InventoryAwareStrategy, MarketMakerStrategy, NullStrategy,
+    StrategyMetrics, create_strategy,
+)
 
 __all__ = [
     "SimulationConfig",
@@ -28,4 +31,8 @@ __all__ = [
     "StepMetrics",
     "MarketMakerStrategy",
     "NullStrategy",
+    "FixedSpreadStrategy",
+    "InventoryAwareStrategy",
+    "StrategyMetrics",
+    "create_strategy",
 ]

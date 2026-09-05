@@ -4,12 +4,7 @@
 Usage:
     python scripts/run_simulation.py --config configs/baseline.yaml
 
-Milestone 6 scope: runs the discrete-event loop with no market maker
-(NullStrategy) and reports reference-price/book/trade metrics, proving
-the loop completes correctly and reproduces given a fixed seed. Milestone
-7 adds the fixed-spread and inventory-aware strategies (plumbed in via
-the same --config market_maker.strategy field) and PnL/inventory/
-adverse-selection reporting.
+The strategy is selected by the config's market_maker.strategy field.
 """
 
 import argparse
@@ -40,6 +35,14 @@ def main() -> None:
     print(f"final active orders: {result.steps[-1].active_orders}")
     print(f"final best bid/ask: {result.steps[-1].best_bid} / {result.steps[-1].best_ask}")
     print(f"final state hash: {result.final_state_hash}")
+    metrics = result.strategy_metrics
+    print(f"strategy: {config.market_maker.strategy}")
+    print(f"PnL (ticks x quantity): {metrics.total_pnl}")
+    print(f"maximum drawdown: {metrics.maximum_drawdown}")
+    print(f"inventory: final={metrics.final_inventory}, max_abs={metrics.maximum_absolute_inventory}")
+    print(f"fills: count={metrics.fill_count}, volume={metrics.filled_volume}")
+    print(f"average spread captured: {metrics.average_spread_captured:.4f} ticks")
+    print(f"adverse selection (1-step): {metrics.adverse_selection:.4f} ticks")
 
 
 if __name__ == "__main__":

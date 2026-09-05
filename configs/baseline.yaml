@@ -1,6 +1,5 @@
 # Baseline market regime (spec section 17).
-# Field names/values are provisional and will be finalized alongside the
-# Python simulator in Milestone 6/7.
+# Used by the deterministic Milestone 7 strategy evaluation.
 
 seed: 42
 tick_size: 1
